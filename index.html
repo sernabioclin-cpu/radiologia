@@ -1,0 +1,1022 @@
+<title>DictaRad HGR</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: barra de dictado fija arriba; columna de campos del reporte + panel lateral de comandos. Hoja de impresión independiente. */
+:root{
+  --verde:#006657; --guinda:#691C32; --dorado:#BC955C;
+  --bg:#f5f7f6; --panel:#ffffff; --fg:#1d2a27; --muted:#5d6b67; --line:#d9e2df; --soft:#e8f1ee; --soft2:#f6efe3;
+  --accent:var(--verde); --accent-fg:#ffffff; --rec:#b3261e; --rec-soft:#fbe9e7; --warn-soft:#fff4dc; --warn:#7a5300; --ok-soft:#e3f3ec; --ok:#0b5d3f;
+  --f-display:"Montserrat",system-ui,sans-serif; --f-body:"Source Sans 3",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111816; --panel:#18211e; --fg:#e4ece9; --muted:#9aaba6; --line:#2c3a36; --soft:#1f2f2a; --soft2:#2a251c;
+  --accent:#3fae96; --accent-fg:#06201a; --rec:#ff8a80; --rec-soft:#3a1d1b; --warn-soft:#352a12; --warn:#f2c76b; --ok-soft:#173327; --ok:#7fd8b0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --panel:#18211e; --fg:#e4ece9; --muted:#9aaba6; --line:#2c3a36; --soft:#1f2f2a; --soft2:#2a251c;
+  --accent:#3fae96; --accent-fg:#06201a; --rec:#ff8a80; --rec-soft:#3a1d1b; --warn-soft:#352a12; --warn:#f2c76b; --ok-soft:#173327; --ok:#7fd8b0; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* Barra superior */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--panel);border-bottom:1px solid var(--line)}
+.top-in{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding-block:10px;max-width:1400px;margin:0 auto}
+.brand{display:flex;align-items:baseline;gap:8px;margin-right:auto}
+.brand b{font-family:var(--f-display);font-weight:700;font-size:18px;color:var(--accent);letter-spacing:.01em}
+.brand span{font-size:12px;color:var(--muted)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{border:1px solid transparent;background:none;padding:6px 12px;border-radius:999px;color:var(--muted);font-weight:600;font-size:14px}
+.tab[aria-selected="true"]{background:var(--soft);color:var(--fg);border-color:var(--line)}
+
+/* Botón de micrófono */
+.micbar{display:flex;align-items:center;gap:10px;flex:1 1 360px;min-width:0}
+.mic{display:flex;align-items:center;gap:8px;border:none;background:var(--accent);color:var(--accent-fg);padding:9px 16px;border-radius:999px;font-family:var(--f-display);font-weight:600;font-size:14px;white-space:nowrap}
+.mic .dot{width:10px;height:10px;border-radius:50%;background:currentColor;opacity:.9}
+.mic.on{background:var(--rec);color:#fff}
+.mic.on .dot{animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.mic.on .dot{animation:none}}
+.interim{flex:1;min-width:0;font-size:14px;color:var(--muted);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px dashed var(--line);border-radius:var(--r);padding:6px 10px;background:var(--bg)}
+.interim.cmd{color:var(--accent);font-style:normal;font-weight:600}
+.sync{font-size:12px;font-weight:600;padding:4px 11px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap;border:1px solid var(--line)}
+.sync.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.sync.pend{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.sync.err{background:var(--rec-soft);color:var(--rec);border-color:transparent}
+.sec textarea[readonly]{color:var(--muted);cursor:default}
+.chip.conflicto{background:var(--rec-soft);color:var(--rec)}
+
+main{max-width:1400px;margin:0 auto;padding-block:18px 60px}
+.view[hidden]{display:none!important}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+@media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+h2{font-family:var(--f-display);font-size:16px;font-weight:700;margin:0 0 12px;text-wrap:balance}
+h3{font-family:var(--f-display);font-size:13px;font-weight:600;margin:0 0 8px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);font-weight:600;min-width:0}
+label.f input,label.f select{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 9px;font-size:14px;font-weight:400;color:var(--fg);min-width:0;width:100%}
+.btn{border:1px solid var(--line);background:var(--panel);padding:7px 12px;border-radius:6px;font-weight:600;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.gui{background:var(--guinda);color:#fff;border-color:var(--guinda)}
+.btn.sm{padding:4px 9px;font-size:13px}
+.btn.danger{color:var(--rec)}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;letter-spacing:.02em}
+.chip.borrador{background:var(--soft);color:var(--muted)}
+.chip.preliminar{background:var(--warn-soft);color:var(--warn)}
+.chip.validado{background:var(--ok-soft);color:var(--ok)}
+.mod{font-family:var(--f-mono);font-size:12px;font-weight:500;padding:1px 6px;border-radius:4px;background:var(--soft2);color:var(--fg)}
+
+/* Campos del reporte */
+.sec{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);transition:border-color .15s, box-shadow .15s}
+.sec.active{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+.sec-h{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.sec-h strong{font-family:var(--f-display);font-size:14px;margin-right:auto}
+.sec.active .sec-h strong{color:var(--accent)}
+.sec-h .hint{font-size:12px;color:var(--muted)}
+.sec textarea{display:block;width:100%;border:none;background:transparent;padding:10px 12px;resize:vertical;min-height:64px;font-size:15px;line-height:1.55;border-radius:0 0 var(--r) var(--r)}
+.sec textarea:focus{outline:none}
+.grp{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--guinda);margin:6px 0 -4px}
+:root[data-theme="dark"] .grp{color:var(--dorado)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .grp{color:var(--dorado)}}
+.banner{border-radius:var(--r);padding:10px 12px;font-size:14px}
+.banner.warn{background:var(--warn-soft);color:var(--warn)}
+.banner.info{background:var(--soft);color:var(--fg)}
+.banner.err{background:var(--rec-soft);color:var(--rec)}
+
+/* Panel de comandos */
+.cmds{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:13px}
+.cmds dt{font-family:var(--f-mono);font-size:12px;color:var(--accent);white-space:nowrap}
+.cmds dd{margin:0;color:var(--muted)}
+.side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px)}
+@media (max-width:980px){.side{position:static}}
+
+/* Tablas */
+.tw{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{text-align:left;background:var(--soft);color:var(--fg);font-weight:600;font-size:12px;letter-spacing:.03em;padding:7px 9px;border-bottom:1px solid var(--line)}
+table.t td{padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:5px;padding:5px 7px;font-size:14px;min-width:120px}
+table.t td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:999px;font-weight:600;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.help p{max-width:70ch;margin:0 0 10px}
+.help ol,.help ul{max-width:70ch;padding-left:20px;margin:0 0 10px}
+
+/* Vista previa / hoja */
+.overlay{position:fixed;inset:0;background:rgba(10,20,18,.55);z-index:40;overflow:auto;padding:calc(20px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
+.ov-bar{max-width:820px;margin:0 auto 10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.sheet{background:#fff;color:#1a1a1a;max-width:820px;margin:0 auto;padding:36px 44px;font-family:"Source Sans 3",Arial,sans-serif;font-size:13.5px;line-height:1.5;border-radius:4px}
+.sheet .hd{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #006657;padding-bottom:10px;margin-bottom:12px;flex-wrap:wrap}
+.sheet .hd .inst{font-family:Montserrat,Arial,sans-serif;font-weight:700;color:#691C32;font-size:13px;letter-spacing:.02em}
+.sheet .hd .hosp{font-family:Montserrat,Arial,sans-serif;font-weight:700;color:#006657;font-size:15px}
+.sheet .hd .sub{font-size:12px;color:#444}
+.sheet .ttl{font-family:Montserrat,Arial,sans-serif;font-weight:700;font-size:15px;text-align:center;margin:8px 0 12px;color:#1a1a1a;text-transform:uppercase;letter-spacing:.03em}
+.sheet table.pt{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:14px}
+.sheet table.pt td{border:1px solid #c9d6d2;padding:4px 7px}
+.sheet table.pt td.k{background:#eef5f3;font-weight:600;width:18%;color:#1a1a1a}
+.sheet .pre{border:1px solid #BC955C;background:#fbf6ee;color:#5a3d12;padding:7px 10px;font-weight:600;font-size:12.5px;margin-bottom:12px}
+.sheet h4{font-family:Montserrat,Arial,sans-serif;font-size:12.5px;font-weight:700;margin:12px 0 3px;color:#006657;text-transform:uppercase;letter-spacing:.03em}
+.sheet .sh{margin:4px 0}
+.sheet .sh b{color:#1a1a1a}
+.sheet p{margin:0 0 4px;white-space:pre-wrap}
+.sheet .concl{border-left:3px solid #006657;padding:4px 10px;background:#f3f8f6;margin-top:4px}
+.sheet .firmas{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:46px;font-size:12px;text-align:center}
+.sheet .firmas div{border-top:1px solid #333;padding-top:4px}
+.sheet .foot{margin-top:22px;font-size:10.5px;color:#666;border-top:1px solid #ddd;padding-top:6px}
+@media (max-width:600px){.sheet{padding:20px 16px}.sheet .firmas{grid-template-columns:1fr}}
+@media print{
+  body{background:#fff}
+  body > *:not(#ov){display:none!important}
+  body::before{display:none}
+  #ov{position:static;background:none;padding:0;overflow:visible}
+  .ov-bar{display:none!important}
+  .sheet{max-width:none;padding:0;border-radius:0;font-size:12.5px}
+  @page{size:letter;margin:16mm 16mm 14mm}
+}
+</style>
+
+<header class="top">
+  <div class="top-in wrap">
+    <div class="brand"><b>DictaRad HGR</b><span>Dictado de reportes de imagen</span></div>
+    <div class="micbar">
+      <button class="mic" id="micBtn" type="button" title="Ctrl+Espacio o F4"><span class="dot"></span><span id="micLbl">Iniciar dictado</span></button>
+      <div class="interim" id="interim" aria-live="polite">Micrófono apagado. Ctrl+Espacio o F4 para dictar.</div>
+    </div>
+    <button class="sync" id="syncPill" type="button" title="Estado de la conexión con Google Sheets">Sólo este equipo</button>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-v="editor" aria-selected="true" id="tab-editor">Dictado</button>
+      <button class="tab" role="tab" data-v="lista" aria-selected="false" id="tab-lista">Reportes</button>
+      <button class="tab" role="tab" data-v="vocab" aria-selected="false" id="tab-vocab">Vocabulario y macros</button>
+      <button class="tab" role="tab" data-v="ayuda" aria-selected="false" id="tab-ayuda">Ayuda</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="support" class="banner err" hidden style="margin-bottom:14px"></div>
+
+  <!-- EDITOR -->
+  <section class="view" id="v-editor">
+    <div class="grid">
+      <div class="stack">
+        <div class="banner warn small stack" id="conflictBox" hidden>
+          <div>Otra persona guardó cambios en este reporte desde otro equipo mientras lo editabas.</div>
+          <div class="row"><button class="btn sm" id="bUseSrv" type="button">Cargar la versión guardada en Sheets</button><button class="btn sm" id="bKeepMine" type="button">Conservar mi versión y reemplazar</button></div>
+        </div>
+        <div class="card stack">
+          <div class="row" style="justify-content:space-between">
+            <h2 style="margin:0">Estudio y paciente</h2>
+            <div class="row"><span class="chip borrador" id="stChip">Borrador</span><span class="muted small" id="repId"></span></div>
+          </div>
+          <div class="fields">
+            <label class="f">Plantilla del estudio
+              <select id="tplSel"></select></label>
+            <label class="f">Nombre del paciente<input id="p_nombre" autocomplete="off"></label>
+            <label class="f">Expediente / NSS<input id="p_exp" autocomplete="off"></label>
+            <label class="f">Edad<input id="p_edad" autocomplete="off" placeholder="p. ej. 45 años"></label>
+            <label class="f">Sexo<select id="p_sexo"><option value=""></option><option>Femenino</option><option>Masculino</option></select></label>
+            <label class="f">Fecha del estudio<input id="p_fecha" type="date"></label>
+            <label class="f">Servicio solicitante<input id="p_serv" autocomplete="off" placeholder="Urgencias, Medicina Interna…"></label>
+            <label class="f">Médico solicitante<input id="p_med" autocomplete="off"></label>
+            <label class="f">Folio / cama<input id="p_folio" autocomplete="off"></label>
+          </div>
+          <div class="banner info small" id="roleBanner"></div>
+        </div>
+
+        <div class="stack" id="secs"></div>
+
+        <div class="card stack" id="reopenBox" hidden>
+          <div class="small">Este reporte está validado y queda de sólo lectura. Para corregirlo, reábrelo: se retira la validación, el motivo queda en la bitácora y habrá que validarlo de nuevo.</div>
+          <div class="row"><input id="reMotivo" placeholder="Motivo de la corrección" style="flex:1 1 240px;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 9px"><button class="btn gui" id="bReopen" type="button">Reabrir para corrección</button></div>
+        </div>
+
+        <div class="card row" style="justify-content:space-between">
+          <div class="row">
+            <button class="btn" id="bNormalAll" type="button">Completar vacíos con normal</button>
+            <button class="btn" id="bUndo" type="button">Deshacer dictado</button>
+          </div>
+          <div class="row">
+            <button class="btn" id="bNew" type="button">Nuevo reporte</button>
+            <button class="btn" id="bSave" type="button">Guardar</button>
+            <button class="btn" id="bPreview" type="button">Vista de impresión</button>
+            <button class="btn pri" id="bFinal" type="button">Finalizar</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side stack">
+        <div class="card">
+          <h3>Comandos de voz</h3>
+          <dl class="cmds">
+            <dt>punto · coma</dt><dd>Puntuación</dd>
+            <dt>dos puntos</dt><dd>:</dd>
+            <dt>punto y aparte</dt><dd>Punto y renglón nuevo</dd>
+            <dt>nuevo párrafo</dt><dd>Línea en blanco</dd>
+            <dt>abre / cierra paréntesis</dt><dd>( )</dd>
+            <dt>10 por 8 milímetros</dt><dd>10 × 8 mm</dd>
+            <dt>siguiente campo</dt><dd>Pasa a la sección siguiente</dd>
+            <dt>campo anterior</dt><dd>Regresa una sección</dd>
+            <dt>ir a riñones</dt><dd>Salta a la sección nombrada</dd>
+            <dt>siguiente espacio</dt><dd>Selecciona el próximo ___ para llenarlo</dd>
+            <dt>insertar normal</dt><dd>Texto normal de la sección</dd>
+            <dt>todo normal</dt><dd>Llena las secciones vacías</dd>
+            <dt>macro [nombre]</dt><dd>Inserta una macro</dd>
+            <dt>borrar eso</dt><dd>Deshace lo último dictado</dd>
+            <dt>borrar campo</dt><dd>Vacía la sección actual</dd>
+            <dt>guardar reporte</dt><dd>Guarda</dd>
+            <dt>vista previa</dt><dd>Abre la hoja</dd>
+            <dt>detener dictado</dt><dd>Apaga el micrófono</dd>
+          </dl>
+        </div>
+        <div class="card stack small">
+          <h3>Quién dicta</h3>
+          <div class="fields" style="grid-template-columns:1fr">
+            <label class="f">Nombre<input id="u_nombre" autocomplete="off"></label>
+            <label class="f">Cédula profesional<input id="u_ced" autocomplete="off"></label>
+            <label class="f">Perfil
+              <select id="u_rol">
+                <option value="radiologo">Médico radiólogo</option>
+                <option value="noradiologo">Médico no radiólogo</option>
+                <option value="transcriptor">Transcriptor (dictado de otro médico)</option>
+              </select></label>
+            <label class="f" id="u_por_w" hidden>Médico que interpreta<input id="u_por" autocomplete="off"></label>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- LISTA -->
+  <section class="view" id="v-lista" hidden>
+    <div class="card stack">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0" id="listTitle">Reportes guardados en este equipo</h2>
+        <div class="row">
+          <button class="btn sm" id="bPull" type="button">Actualizar</button>
+          <label class="f" style="flex-direction:row;align-items:center;gap:6px">Estado
+            <select id="fEstado"><option value="">Todos</option><option value="borrador">Borrador</option><option value="preliminar">Preliminar</option><option value="validado">Validado</option></select></label>
+          <input id="fBus" placeholder="Buscar paciente o estudio" style="border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 9px;min-width:0">
+        </div>
+      </div>
+      <div class="tw"><table class="t" id="tLista"></table></div>
+      <p class="muted small" style="margin:0" id="listSrc">Los reportes se guardan sólo en el navegador de este equipo. Conecta Google Sheets o usa «Exportar respaldo» con regularidad.</p>
+      <div class="row"><button class="btn" id="bExp" type="button">Exportar respaldo (.json)</button><label class="btn" for="fImp">Importar respaldo</label><input type="file" id="fImp" accept=".json" hidden></div>
+    </div>
+  </section>
+
+  <!-- VOCAB -->
+  <section class="view" id="v-vocab" hidden>
+    <div class="stack">
+      <div class="card stack" id="connCard">
+        <h2 style="margin:0">Conexión con Google Sheets</h2>
+        <p class="muted small" style="margin:0;max-width:75ch">Con la conexión activa, todos los equipos de Imagenología comparten la misma lista de reportes, el vocabulario y las macros. Si se va la red, la app sigue funcionando y envía los cambios cuando vuelve.</p>
+        <div class="fields">
+          <label class="f" style="grid-column:1/-1">URL de la aplicación web (termina en /exec)<input id="c_url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec"></label>
+          <label class="f">Clave de acceso<input id="c_key" autocomplete="off" type="password"></label>
+        </div>
+        <div class="row"><button class="btn pri" id="bConn" type="button">Probar y conectar</button><button class="btn" id="bSyncNow" type="button">Sincronizar ahora</button><button class="btn danger" id="bDisc" type="button">Desconectar este equipo</button></div>
+        <div class="small muted" id="connMsg"></div>
+      </div>
+      <div class="card stack">
+        <h2 style="margin:0">Correcciones de vocabulario</h2>
+        <p class="muted small" style="margin:0;max-width:75ch">Cuando el reconocedor escuche la frase de la izquierda, escribirá la de la derecha. Sirve para términos que Chrome separa o escribe mal («hipo ecoico» → «hipoecoico») y para siglas.</p>
+        <div class="tw"><table class="t" id="tVoc"></table></div>
+        <div class="row"><button class="btn" id="bAddVoc" type="button">Agregar corrección</button><button class="btn sm" id="bResetVoc" type="button">Restaurar lista original</button></div>
+      </div>
+      <div class="card stack">
+        <h2 style="margin:0">Macros</h2>
+        <p class="muted small" style="margin:0;max-width:75ch">Di «macro» seguido del nombre para insertar el texto completo. Ejemplo: «macro hígado graso».</p>
+        <div class="tw"><table class="t" id="tMac"></table></div>
+        <div class="row"><button class="btn" id="bAddMac" type="button">Agregar macro</button></div>
+      </div>
+      <div class="card stack">
+        <h2 style="margin:0">Opciones</h2>
+        <label class="row small"><input type="checkbox" id="optPunct" checked> Convertir «punto», «coma», etc. en signos</label>
+        <label class="row small"><input type="checkbox" id="optUnits" checked> Abreviar unidades después de números (mm, cm, ml, UH)</label>
+        <label class="row small"><input type="checkbox" id="optBeep" checked> Sonido al reconocer un comando</label>
+        <label class="f" style="max-width:260px">Idioma del reconocedor
+          <select id="optLang"><option value="es-MX">Español (México)</option><option value="es-US">Español (EE. UU.)</option><option value="es-ES">Español (España)</option></select></label>
+        <h3 style="margin-top:6px">Membrete</h3>
+        <div class="fields">
+          <label class="f">Institución<input id="h_inst"></label>
+          <label class="f">Unidad<input id="h_hosp"></label>
+          <label class="f">Servicio<input id="h_serv"></label>
+          <label class="f">Domicilio / CLUES<input id="h_dir"></label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AYUDA -->
+  <section class="view help" id="v-ayuda" hidden>
+    <div class="card stack">
+      <h2 style="margin:0">Cómo usar DictaRad</h2>
+      <ol>
+        <li>Abre la app en <b>Google Chrome o Microsoft Edge</b> de escritorio (Firefox y Safari no tienen el reconocedor de voz). La primera vez, permite el uso del micrófono.</li>
+        <li>Llena «Quién dicta» una sola vez; se recuerda en este equipo.</li>
+        <li>Elige la plantilla, escribe los datos del paciente con el teclado y haz clic en la sección donde quieras empezar.</li>
+        <li>Pulsa <b>Iniciar dictado</b> (o Ctrl+Espacio / F4) y habla en frases completas. El texto entra en la sección resaltada en verde.</li>
+        <li>Navega con «siguiente campo», «ir a conclusión» o «siguiente espacio» para llenar los huecos ___ de la plantilla.</li>
+        <li>Revisa, corrige con el teclado y pulsa <b>Finalizar</b>. Desde la vista de impresión puedes imprimir o descargar en Word.</li>
+      </ol>
+      <h2 style="margin:8px 0 0">Reportes dictados por médicos no radiólogos</h2>
+      <p>Si el perfil es «Médico no radiólogo», al finalizar el reporte queda como <b>Preliminar</b> y la hoja lleva una leyenda visible de interpretación preliminar pendiente de validación. Un médico radiólogo puede abrirlo, revisarlo y pulsar <b>Validar</b>; entonces se registra su nombre, cédula y la fecha de validación. El perfil «Transcriptor» sirve para cuando una persona captura lo que dicta otro médico; se anota quién interpretó.</p>
+      <h2 style="margin:8px 0 0">Privacidad de los datos</h2>
+      <p>El reconocimiento de voz de Chrome envía el audio a los servidores de Google para convertirlo en texto. Por eso conviene <b>escribir con teclado el nombre y el expediente</b> y dictar sólo los hallazgos.</p>
+      <p>Sin conexión, los reportes viven sólo en el navegador de este equipo. Con Google Sheets conectado se guardan en la hoja institucional, con bitácora de quién creó, finalizó, validó, reabrió o eliminó cada reporte. Comparte la hoja sólo con quien deba verla y la clave sólo con el personal de Imagenología. Los reportes validados no pueden eliminarse ni modificarse sin reabrirlos con un motivo.</p>
+      <h2 style="margin:8px 0 0">Consejos para mejor reconocimiento</h2>
+      <ul>
+        <li>Usa un micrófono de diadema o de escritorio; el de la laptop capta mucho ruido de la sala.</li>
+        <li>Dicta a ritmo normal, sin pausas largas a mitad de frase. Las pausas cierran la frase.</li>
+        <li>Si un término sale mal de forma repetida, agrégalo en «Vocabulario y macros».</li>
+        <li>Para medidas di «12 por 8 por 10 milímetros» y saldrá «12 × 8 × 10 mm».</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<div class="overlay" id="ov" hidden>
+  <div class="ov-bar">
+    <button class="btn" id="bValidar" type="button" hidden>Validar como radiólogo</button>
+    <button class="btn" id="bCopy" type="button">Copiar texto</button>
+    <button class="btn" id="bWord" type="button">Descargar Word</button>
+    <button class="btn pri" id="bPrint" type="button">Imprimir</button>
+    <button class="btn" id="bClose" type="button">Cerrar</button>
+  </div>
+  <div class="ov-bar" id="valBox" hidden style="justify-content:flex-start;background:var(--panel);padding:10px;border-radius:8px">
+    <label class="f">Radiólogo que valida<input id="val_n"></label>
+    <label class="f">Cédula<input id="val_c"></label>
+    <button class="btn gui" id="bValOk" type="button" style="align-self:flex-end">Confirmar validación</button>
+  </div>
+  <div class="sheet" id="sheet"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= PLANTILLAS ================= */
+const TPL=[
+{id:'us-abd',mod:'US',name:'Ultrasonido de abdomen superior',
+ tec:'Se realizó estudio ultrasonográfico de abdomen superior en escala de grises con transductor convexo multifrecuencia.',
+ s:[['Hígado','De forma, tamaño y situación normales, contornos regulares y ecotextura homogénea, sin lesiones focales. Vasos portales y suprahepáticos de calibre normal.'],
+    ['Vesícula biliar','Normodistendida, de paredes delgadas, sin litos ni sedimento en su interior.'],
+    ['Vías biliares','Intra y extrahepáticas no dilatadas; colédoco de calibre normal.'],
+    ['Páncreas','Visible en cabeza y cuerpo, de tamaño y ecogenicidad normales.'],
+    ['Bazo','De tamaño y ecotextura normales, sin lesiones focales.'],
+    ['Riñones','De forma, tamaño y posición normales, adecuada relación corticomedular, sin litiasis ni dilatación de sistemas colectores.'],
+    ['Otros hallazgos','Aorta abdominal de calibre normal. Sin líquido libre en cavidad.']],
+ c:'Ultrasonido de abdomen superior sin alteraciones.'},
+{id:'us-renal',mod:'US',name:'Ultrasonido renal y de vías urinarias',
+ tec:'Se realizó estudio ultrasonográfico renal y vesical en escala de grises.',
+ s:[['Riñón derecho','Mide ___ × ___ mm, de forma y posición normales, parénquima de ___ mm con adecuada relación corticomedular, sin litiasis ni hidronefrosis.'],
+    ['Riñón izquierdo','Mide ___ × ___ mm, de forma y posición normales, parénquima de ___ mm con adecuada relación corticomedular, sin litiasis ni hidronefrosis.'],
+    ['Vejiga','Con adecuada repleción, paredes delgadas y regulares, contenido anecoico, sin imágenes intraluminales.'],
+    ['Volumen residual','Volumen prevaciado de ___ ml y posvaciado de ___ ml.'],
+    ['Próstata','De ___ × ___ × ___ mm, volumen estimado de ___ cc, ecotextura homogénea.']],
+ c:'Ultrasonido renal y vesical sin alteraciones.'},
+{id:'us-pelv',mod:'US',name:'Ultrasonido pélvico ginecológico',
+ tec:'Se realizó ultrasonido pélvico por vía abdominal con vejiga en repleción.',
+ s:[['Útero','En anteversoflexión, de contornos regulares, mide ___ × ___ × ___ mm, miometrio de ecotextura homogénea.'],
+    ['Endometrio','Lineal, central, de ___ mm de espesor.'],
+    ['Ovario derecho','Mide ___ × ___ × ___ mm, volumen de ___ cc, con folículos de aspecto fisiológico.'],
+    ['Ovario izquierdo','Mide ___ × ___ × ___ mm, volumen de ___ cc, con folículos de aspecto fisiológico.'],
+    ['Fondo de saco','Libre, sin líquido.']],
+ c:'Ultrasonido pélvico sin alteraciones.'},
+{id:'us-obst',mod:'US',name:'Ultrasonido obstétrico (2.º y 3.er trimestre)',
+ tec:'Se realizó ultrasonido obstétrico por vía abdominal en escala de grises.',
+ s:[['Feto','Producto único, vivo, en situación ___, presentación ___, dorso ___.'],
+    ['Actividad cardiaca','Frecuencia cardiaca fetal de ___ lpm, rítmica. Movimientos fetales presentes.'],
+    ['Biometría fetal','DBP ___ mm, CC ___ mm, CA ___ mm, LF ___ mm, que corresponden a ___ SDG. Peso fetal estimado de ___ g.'],
+    ['Placenta','De localización ___, grado ___ de Grannum, sin datos de desprendimiento.'],
+    ['Líquido amniótico','En cantidad normal, ILA de ___ cm.'],
+    ['Cérvix','Longitud cervical de ___ mm, orificio cervical interno cerrado.']],
+ c:'Embarazo único vivo de ___ SDG por fetometría. Placenta grado ___. Líquido amniótico normal.'},
+{id:'us-tir',mod:'US',name:'Ultrasonido de tiroides',
+ tec:'Se realizó ultrasonido de cuello con transductor lineal de alta frecuencia, en escala de grises y Doppler color.',
+ s:[['Lóbulo derecho','Mide ___ × ___ × ___ mm, ecotextura homogénea, sin nódulos.'],
+    ['Lóbulo izquierdo','Mide ___ × ___ × ___ mm, ecotextura homogénea, sin nódulos.'],
+    ['Istmo','De ___ mm de espesor, sin alteraciones.'],
+    ['Nódulos','Sin nódulos identificables.'],
+    ['Ganglios cervicales','Sin adenopatías de aspecto patológico.']],
+ c:'Glándula tiroides de tamaño y ecotextura normales. TI-RADS no aplica.'},
+{id:'us-mama',mod:'US',name:'Ultrasonido mamario',
+ tec:'Se realizó ultrasonido mamario bilateral con transductor lineal de alta frecuencia.',
+ s:[['Mama derecha','Patrón fibroglandular de distribución habitual, sin masas, quistes ni distorsión de la arquitectura.'],
+    ['Mama izquierda','Patrón fibroglandular de distribución habitual, sin masas, quistes ni distorsión de la arquitectura.'],
+    ['Regiones axilares','Ganglios de morfología conservada, con hilio graso.']],
+ c:'Ultrasonido mamario bilateral sin hallazgos. BI-RADS 1.'},
+{id:'tc-cra',mod:'TC',name:'Tomografía de cráneo simple',
+ tec:'Se realizó tomografía computada de cráneo simple con adquisición axial desde la base del cráneo hasta el vértex y reconstrucciones multiplanares.',
+ s:[['Parénquima cerebral','Adecuada diferenciación entre sustancia gris y blanca, sin áreas de densidad anormal, sin colecciones ni efecto de masa.'],
+    ['Sistema ventricular','De tamaño y configuración normales, línea media centrada.'],
+    ['Espacio subaracnoideo y cisternas','Surcos y cisternas de la base de amplitud normal para la edad.'],
+    ['Fosa posterior','Tallo cerebral y hemisferios cerebelosos de densidad normal. Cuarto ventrículo centrado.'],
+    ['Estructuras óseas','Calota y base de cráneo íntegras, sin trazos de fractura.'],
+    ['Senos paranasales y mastoides','Adecuadamente neumatizados.']],
+ c:'Tomografía de cráneo simple sin evidencia de alteraciones agudas.'},
+{id:'tc-tor',mod:'TC',name:'Tomografía de tórax',
+ tec:'Se realizó tomografía computada de tórax ___ con reconstrucciones en ventana pulmonar y mediastinal.',
+ s:[['Parénquima pulmonar','Ambos pulmones adecuadamente expandidos, sin consolidaciones, nódulos ni opacidades en vidrio deslustrado.'],
+    ['Vía aérea','Tráquea y bronquios principales permeables, de calibre normal.'],
+    ['Mediastino e hilios','Sin adenopatías ni masas. Hilios de aspecto normal.'],
+    ['Pleura','Sin derrame ni engrosamiento pleural. Sin neumotórax.'],
+    ['Corazón y grandes vasos','Silueta cardiaca de tamaño normal, sin derrame pericárdico. Aorta de calibre normal.'],
+    ['Pared torácica y estructuras óseas','Sin alteraciones.']],
+ c:'Tomografía de tórax sin alteraciones.'},
+{id:'tc-abd',mod:'TC',name:'Tomografía de abdomen y pelvis',
+ tec:'Se realizó tomografía computada de abdomen y pelvis ___ con medio de contraste ___, con reconstrucciones multiplanares.',
+ s:[['Hígado','De tamaño y morfología normales, densidad homogénea, sin lesiones focales.'],
+    ['Vesícula y vía biliar','Vesícula normodistendida sin litos visibles. Vía biliar no dilatada.'],
+    ['Páncreas','De tamaño y densidad normales, sin colecciones peripancreáticas.'],
+    ['Bazo','De tamaño y densidad normales.'],
+    ['Glándulas suprarrenales','De morfología normal.'],
+    ['Riñones y vías urinarias','Simétricos, con adecuada captación y eliminación del contraste, sin litiasis ni dilatación.'],
+    ['Tubo digestivo','Asas de calibre normal, sin engrosamiento parietal ni datos de obstrucción. Apéndice ___.'],
+    ['Vejiga y órganos pélvicos','Vejiga con adecuada repleción. Órganos pélvicos sin alteraciones.'],
+    ['Peritoneo y ganglios','Sin líquido libre ni adenopatías.'],
+    ['Estructuras óseas','Sin lesiones líticas ni blásticas.']],
+ c:'Tomografía de abdomen y pelvis sin alteraciones.'},
+{id:'rm-cra',mod:'RM',name:'Resonancia magnética de cráneo',
+ tec:'Se realizó resonancia magnética de encéfalo con secuencias T1, T2, FLAIR, difusión (DWI/ADC) y T2* ___ administración de gadolinio.',
+ s:[['Parénquima cerebral','Adecuada diferenciación entre sustancia gris y blanca, sin alteraciones de la intensidad de señal.'],
+    ['Difusión','Sin restricción a la difusión.'],
+    ['Sistema ventricular','De tamaño y configuración normales, línea media centrada.'],
+    ['Fosa posterior','Tallo cerebral y cerebelo de morfología e intensidad de señal normales.'],
+    ['Región selar','Hipófisis de tamaño y señal normales.'],
+    ['Órbitas, senos y mastoides','Sin alteraciones.']],
+ c:'Resonancia magnética de encéfalo sin alteraciones.'},
+{id:'rm-lum',mod:'RM',name:'Resonancia magnética de columna lumbar',
+ tec:'Se realizó resonancia magnética de columna lumbar con secuencias sagitales T1, T2 y STIR y axiales T2.',
+ s:[['Alineación','Lordosis lumbar conservada, sin listesis.'],
+    ['Cuerpos vertebrales','De altura e intensidad de señal normales, sin edema óseo.'],
+    ['Discos intervertebrales','L1-L2: sin alteraciones.\nL2-L3: sin alteraciones.\nL3-L4: sin alteraciones.\nL4-L5: sin alteraciones.\nL5-S1: sin alteraciones.'],
+    ['Conducto raquídeo y forámenes','De amplitud normal, sin compresión radicular.'],
+    ['Cono medular','Termina a nivel de ___, de señal normal.'],
+    ['Partes blandas paravertebrales','Sin alteraciones.']],
+ c:'Resonancia magnética de columna lumbar sin alteraciones.'},
+{id:'rm-rod',mod:'RM',name:'Resonancia magnética de rodilla',
+ tec:'Se realizó resonancia magnética de rodilla ___ con secuencias densidad protónica con supresión grasa, T1 y T2 en los tres planos.',
+ s:[['Meniscos','Menisco medial y lateral de morfología y señal normales, sin rupturas.'],
+    ['Ligamentos cruzados','Ligamento cruzado anterior y posterior íntegros.'],
+    ['Ligamentos colaterales','Colateral medial y lateral íntegros.'],
+    ['Mecanismo extensor','Tendón cuadricipital y rotuliano íntegros.'],
+    ['Cartílago articular','De grosor y señal conservados en los tres compartimentos.'],
+    ['Hueso subcondral','Sin edema óseo ni fracturas.'],
+    ['Derrame y partes blandas','Sin derrame articular significativo. Sin quiste de Baker.']],
+ c:'Resonancia magnética de rodilla sin alteraciones.'},
+{id:'libre',mod:'—',name:'Reporte libre (sin plantilla)',tec:'',s:[['Hallazgos','']],c:''}
+];
+
+/* ================= VOCABULARIO POR DEFECTO ================= */
+const VOC0=[
+['hipo ecoico','hipoecoico'],['hipo ecoica','hipoecoica'],['hiper ecoico','hiperecoico'],['hiper ecoica','hiperecoica'],
+['an ecoico','anecoico'],['an ecoica','anecoica'],['iso ecoico','isoecoico'],['eco génico','ecogénico'],['eco génica','ecogénica'],
+['eco textura','ecotextura'],['hipo denso','hipodenso'],['hipo densa','hipodensa'],['hiper denso','hiperdenso'],['hiper densa','hiperdensa'],
+['hipo intenso','hipointenso'],['hipo intensa','hipointensa'],['hiper intenso','hiperintenso'],['hiper intensa','hiperintensa'],
+['hepato megalia','hepatomegalia'],['espleno megalia','esplenomegalia'],['hidro nefrosis','hidronefrosis'],['cole litiasis','colelitiasis'],
+['coledoco litiasis','coledocolitiasis'],['nefro litiasis','nefrolitiasis'],['cortico medular','corticomedular'],
+['bi rads','BI-RADS'],['birads','BI-RADS'],['ti rads','TI-RADS'],['tirads','TI-RADS'],['li rads','LI-RADS'],
+['doppler','Doppler'],['flair','FLAIR'],['stir','STIR'],['t uno','T1'],['t dos','T2'],['t1','T1'],['t2','T2'],
+['semanas de gestación','SDG'],['latidos por minuto','lpm'],['grannum','Grannum'],['l cinco s uno','L5-S1'],['l cuatro l cinco','L4-L5'],
+['vidrio despulido','vidrio deslustrado']
+];
+const MAC0=[
+['hígado graso','Hígado de tamaño normal con aumento difuso de la ecogenicidad y atenuación posterior del haz, compatible con infiltración grasa grado ___.'],
+['colecistitis','Vesícula biliar distendida, con pared engrosada de ___ mm, litos en su interior y signo de Murphy ecográfico positivo.'],
+['apendicitis','Apéndice cecal no compresible, con diámetro transverso de ___ mm, con cambios inflamatorios de la grasa periapendicular.'],
+['quiste simple','Imagen anecoica de paredes delgadas, bien definida, con reforzamiento acústico posterior, de ___ × ___ mm, compatible con quiste simple.']
+];
+const HDR0={inst:'IMSS-BIENESTAR',hosp:'Hospital General Reynosa "Dr. José María Cantú Garza"',serv:'Servicio de Imagenología',dir:'Blvd. Álvaro Obregón 425, Col. Presa la Laguna, Reynosa, Tamaulipas · CLUES TSIMB001260'};
+
+/* ================= ALMACENAMIENTO ================= */
+const LS={get(k,d){try{const v=localStorage.getItem('dictarad_'+k);return v?JSON.parse(v):d}catch(e){return d}},
+          set(k,v){try{localStorage.setItem('dictarad_'+k,JSON.stringify(v));return true}catch(e){return false}}};
+let reports=LS.get('reports',[]);
+let voc=LS.get('voc',null)||VOC0.map(x=>x.slice());
+let macros=LS.get('macros',null)||MAC0.map(x=>x.slice());
+let opts=Object.assign({punct:true,units:true,beep:true,lang:'es-MX'},LS.get('opts',{}));
+let hdr=Object.assign({},HDR0,LS.get('hdr',{}));
+let user=Object.assign({nombre:'',ced:'',rol:'radiologo',por:''},LS.get('user',{}));
+let conn=Object.assign({url:'',key:''},LS.get('conn',{}));
+let pending=LS.get('pending',[]), lastSync=LS.get('lastSync',''), conflicts=LS.get('conflicts',{});
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[.,;:¿?¡!]/g,'').replace(/\s+/g,' ').trim();
+const today=()=>new Date().toISOString().slice(0,10);
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),1800)}
+
+/* ================= REPORTE ACTUAL ================= */
+let cur=null, activeIdx=0, undoStack=[];
+function newReport(tplId){
+  const t=TPL.find(x=>x.id===tplId)||TPL[0];
+  const secs=[{key:'indicacion',grp:'pre',title:'Indicación clínica',normal:'',text:''},
+              {key:'tecnica',grp:'pre',title:'Técnica',normal:t.tec,text:t.tec}];
+  t.s.forEach((x,i)=>secs.push({key:'h'+i,grp:'hall',title:x[0],normal:x[1],text:''}));
+  secs.push({key:'conclusion',grp:'post',title:'Conclusión / Impresión diagnóstica',normal:t.c,text:''});
+  return {id:'R'+Date.now().toString(36).toUpperCase(),tpl:t.id,mod:t.mod,estudio:t.name,
+    pac:{nombre:'',exp:'',edad:'',sexo:'',fecha:today(),serv:'',med:'',folio:''},
+    secs,estado:'borrador',dicto:null,valido:null,creado:new Date().toISOString(),mod_at:null};
+}
+function loadReport(r){cur=r;activeIdx=1;undoStack=[];renderEditor();}
+
+function renderEditor(){
+  $('#tplSel').value=cur.tpl;
+  const p=cur.pac; $('#p_nombre').value=p.nombre;$('#p_exp').value=p.exp;$('#p_edad').value=p.edad;$('#p_sexo').value=p.sexo;
+  $('#p_fecha').value=p.fecha;$('#p_serv').value=p.serv;$('#p_med').value=p.med;$('#p_folio').value=p.folio;
+  const ro=cur.estado==='validado';
+  ['#tplSel','#p_nombre','#p_exp','#p_edad','#p_sexo','#p_fecha','#p_serv','#p_med','#p_folio'].forEach(q=>$(q).disabled=ro);
+  $('#reopenBox').hidden=!ro;$('#bFinal').disabled=ro;$('#bNormalAll').disabled=ro;
+  $('#conflictBox').hidden=!conflicts[cur.id];
+  const chip=$('#stChip');chip.className='chip '+cur.estado;chip.textContent={borrador:'Borrador',preliminar:'Preliminar',validado:'Validado'}[cur.estado];
+  $('#repId').textContent=cur.id;
+  let h='',lastGrp='';
+  cur.secs.forEach((s,i)=>{
+    if(s.grp==='hall'&&lastGrp!=='hall')h+='<div class="grp">Hallazgos</div>';
+    lastGrp=s.grp;
+    h+=`<div class="sec${i===activeIdx?' active':''}" data-i="${i}"><div class="sec-h"><strong>${esc(s.title)}</strong>`+
+       (s.normal&&!ro?`<button class="btn sm" type="button" data-normal="${i}">Normal</button>`:'')+
+       `</div><textarea id="sec_${i}" data-i="${i}" spellcheck="true" lang="es"${ro?' readonly':''}>${esc(s.text)}</textarea></div>`;
+  });
+  $('#secs').innerHTML=h;
+  $$('#secs textarea').forEach(autoGrow);
+  updateRoleBanner();
+}
+function autoGrow(ta){ta.style.height='auto';ta.style.height=Math.max(64,ta.scrollHeight+2)+'px'}
+function setActive(i,focus=true,caretEnd=true){
+  if(i<0||i>=cur.secs.length)return;
+  activeIdx=i;
+  $$('.sec').forEach(el=>el.classList.toggle('active',+el.dataset.i===i));
+  const ta=$('#sec_'+i);
+  if(ta&&focus){ta.focus({preventScroll:true});if(caretEnd){const L=ta.value.length;ta.setSelectionRange(L,L)}
+    ta.closest('.sec').scrollIntoView({block:'nearest',behavior:'smooth'});}
+}
+function syncSec(i){const ta=$('#sec_'+i);if(ta){cur.secs[i].text=ta.value;autoGrow(ta)}}
+
+$('#secs').addEventListener('focusin',e=>{if(e.target.tagName==='TEXTAREA'){activeIdx=+e.target.dataset.i;$$('.sec').forEach(el=>el.classList.toggle('active',+el.dataset.i===activeIdx))}});
+$('#secs').addEventListener('input',e=>{if(e.target.tagName==='TEXTAREA'){syncSec(+e.target.dataset.i);dirty()}});
+$('#secs').addEventListener('click',e=>{const b=e.target.closest('[data-normal]');if(b){insertNormal(+b.dataset.normal)}});
+
+['nombre','exp','edad','sexo','fecha','serv','med','folio'].forEach(k=>{
+  $('#p_'+k).addEventListener('input',e=>{cur.pac[k]=e.target.value;dirty()});
+});
+$('#tplSel').addEventListener('change',e=>{
+  const hasText=cur.secs.some(s=>s.key!=='tecnica'&&s.text.trim());
+  const keep={...cur.pac}, ind=cur.secs[0].text;
+  const id=cur.id;
+  cur=newReport(e.target.value);cur.id=id;cur.pac=keep;cur.secs[0].text=ind;
+  if(hasText)toast('Plantilla cambiada; se conservó la indicación clínica');
+  activeIdx=1;undoStack=[];renderEditor();dirty();
+});
+
+/* ================= INSERCIÓN DE TEXTO ================= */
+function pushUndo(i){const ta=$('#sec_'+i);undoStack.push({i,v:cur.secs[i].text,s:ta?ta.selectionStart:0});if(undoStack.length>80)undoStack.shift()}
+function undo(){if(cur.estado==='validado')return;const u=undoStack.pop();if(!u){toast('Nada que deshacer');return}
+  cur.secs[u.i].text=u.v;const ta=$('#sec_'+u.i);ta.value=u.v;autoGrow(ta);setActive(u.i,true,false);ta.setSelectionRange(u.s,u.s);dirty();toast('Deshecho')}
+
+function insertText(txt){
+  const i=activeIdx, ta=$('#sec_'+i); if(!ta||!txt)return;
+  if(ta.readOnly){toast('Reporte validado: reábrelo para corregirlo');return}
+  pushUndo(i);
+  const v=ta.value; let a=ta.selectionStart, b=ta.selectionEnd;
+  if(document.activeElement!==ta){a=b=v.length}
+  const before=v.slice(0,a), after=v.slice(b);
+  const prev=before.replace(/[ \t]+$/,'');
+  const lastCh=prev.slice(-1);
+  const startsPunct=/^[.,;:)%\n]/.test(txt);
+  const capNeeded=prev===''||/[.!?\n]$/.test(prev);
+  let t=txt;
+  if(!startsPunct){
+    if(capNeeded)t=t.charAt(0).toUpperCase()+t.slice(1);
+    else if(!/^[A-ZÁÉÍÓÚÑ0-9-]{2,}/.test(t.split(/\s/)[0]))t=t.charAt(0).toLowerCase()+t.slice(1);
+  }
+  let sep='';
+  if(before.length&&!startsPunct&&!/[\s(\/]$/.test(before))sep=' ';
+  let base=startsPunct?prev:before;
+  if(startsPunct&&lastCh===t[0]&&t[0]==='.')t=t.slice(1);
+  let out=base+sep+t;
+  let tail=after;
+  if(tail&&!/^[\s.,;:)]/.test(tail)&&!/[\s(\n]$/.test(out))out+=' ';
+  ta.value=out+tail; const pos=out.length; ta.focus({preventScroll:true}); ta.setSelectionRange(pos,pos);
+  syncSec(i); dirty();
+}
+
+/* Transforma la frase reconocida: vocabulario, puntuación, unidades, mayúsculas */
+function rx(word){return new RegExp('(^|[^\\p{L}\\d])('+word+')(?=$|[^\\p{L}\\d])','giu')}
+function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
+function accentFold(s){return escRe(s).replace(/a/g,'[aá]').replace(/e/g,'[eé]').replace(/i/g,'[ií]').replace(/o/g,'[oó]').replace(/u/g,'[uúü]')}
+function transform(raw){
+  let t=' '+raw.trim()+' ';
+  voc.slice().sort((a,b)=>b[0].length-a[0].length).forEach(([f,to])=>{if(f.trim())t=t.replace(rx(accentFold(norm(f))),(m,p)=>p+to)});
+  t=t.replace(/(\d)\s+punto\s+(\d)/gi,'$1.$2');
+  if(opts.punct){
+    const P=[['punto y aparte','.\n'],['punto y seguido','.'],['nuevo parrafo','\n\n'],['nueva linea','\n'],['nuevo renglon','\n'],['punto y coma',';'],['dos puntos',':'],
+      ['abre parentesis','('],['abrir parentesis','('],['cierra parentesis',')'],['cerrar parentesis',')'],['abre comillas','"'],['cierra comillas','"'],
+      ['signo de interrogacion','?'],['diagonal','/'],['guion','-'],['punto','.'],['coma',',']];
+    P.forEach(([w,s])=>{t=t.replace(rx(accentFold(w)),(m,p)=>p+'\u0001'+s+'\u0001')});
+  }
+  t=t.replace(/(\d)\s+por\s+(?=\d)/gi,'$1 × ');
+  t=t.replace(/(\d)\s*por ciento/gi,'$1%');
+  if(opts.units){
+    const U=[['unidades hounsfield','UH'],['centimetros cubicos','cc'],['milimetros','mm'],['milimetro','mm'],['centimetros','cm'],['centimetro','cm'],['mililitros','ml'],['mililitro','ml'],['gramos','g'],['kilogramos','kg']];
+    U.forEach(([w,s])=>{t=t.replace(new RegExp('(\\d)\\s*('+accentFold(w)+')(?=$|[^\\p{L}])','giu'),'$1 '+s)});
+  }
+  // limpieza de espacios alrededor de signos
+  t=t.replace(/\s*\u0001([.,;:)?%])\u0001\s*/g,'$1 ').replace(/\s*\u0001\(\u0001\s*/g,' (').replace(/\s*\u0001(\n+)\u0001\s*/g,'$1')
+     .replace(/\s*\u0001\.\n\u0001\s*/g,'.\n').replace(/\s*\u0001([-\/"])\u0001\s*/g,'$1').replace(/\u0001/g,'');
+  t=t.replace(/[ \t]+/g,' ').replace(/ ?\n ?/g,'\n').replace(/\.{2,}/g,'.').replace(/ ([.,;:)%])/g,'$1');
+  t=t.replace(/^ /,'').replace(/ $/,'');
+  // mayúscula después de punto o salto
+  t=t.replace(/([.?!]\s+|\n)([a-záéíóúñ])/g,(m,a,b)=>a+b.toUpperCase());
+  return t;
+}
+
+/* ================= COMANDOS ================= */
+function beep(){if(!opts.beep)return;try{const c=beep.c||(beep.c=new (window.AudioContext||window.webkitAudioContext)());const o=c.createOscillator(),g=c.createGain();o.frequency.value=880;g.gain.value=.05;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.08)}catch(e){}}
+function findSection(name){const n=norm(name);let i=cur.secs.findIndex(s=>norm(s.title)===n);if(i<0)i=cur.secs.findIndex(s=>norm(s.title).startsWith(n));if(i<0)i=cur.secs.findIndex(s=>norm(s.title).includes(n));return i}
+function nextBlank(){
+  for(let k=0;k<cur.secs.length;k++){
+    const i=(activeIdx+k)%cur.secs.length, ta=$('#sec_'+i), from=k===0?ta.selectionEnd:0, p=ta.value.indexOf('___',from);
+    if(p>=0){setActive(i,true,false);ta.setSelectionRange(p,p+3);return true}
+  }
+  toast('No quedan espacios ___');return false;
+}
+function insertNormal(i){if(cur.estado==='validado')return;const s=cur.secs[i];if(!s.normal){toast('Esta sección no tiene texto normal');return}
+  setActive(i,true);pushUndo(i);const ta=$('#sec_'+i);ta.value=s.text.trim()?s.text.replace(/\s*$/,'')+'\n'+s.normal:s.normal;syncSec(i);dirty();}
+function allNormal(){if(cur.estado==='validado')return;let n=0;cur.secs.forEach((s,i)=>{if(!s.text.trim()&&s.normal){pushUndo(i);s.text=s.normal;n++}});renderEditor();setActive(activeIdx);dirty();toast(n?`${n} secciones completadas`:'No había secciones vacías')}
+
+function tryCommand(raw){
+  const n=norm(raw); let m;
+  const C={
+    'borrar eso':undo,'borra eso':undo,'deshacer':undo,'deshaz eso':undo,
+    'siguiente campo':()=>setActive(Math.min(activeIdx+1,cur.secs.length-1)),'siguiente seccion':()=>setActive(Math.min(activeIdx+1,cur.secs.length-1)),
+    'campo anterior':()=>setActive(Math.max(activeIdx-1,0)),'seccion anterior':()=>setActive(Math.max(activeIdx-1,0)),
+    'siguiente espacio':nextBlank,'siguiente hueco':nextBlank,
+    'insertar normal':()=>insertNormal(activeIdx),'texto normal':()=>insertNormal(activeIdx),'normal':()=>insertNormal(activeIdx),
+    'todo normal':allNormal,'plantilla normal':allNormal,
+    'borrar campo':()=>{if(cur.estado==='validado')return;pushUndo(activeIdx);const ta=$('#sec_'+activeIdx);ta.value='';syncSec(activeIdx);dirty()},'limpiar campo':()=>{if(cur.estado==='validado')return;pushUndo(activeIdx);const ta=$('#sec_'+activeIdx);ta.value='';syncSec(activeIdx);dirty()},
+    'guardar reporte':()=>save(true),'guardar':()=>save(true),
+    'vista previa':openPreview,'vista de impresion':openPreview,
+    'detener dictado':stopRec,'parar dictado':stopRec,'alto dictado':stopRec,'apagar microfono':stopRec,
+    'conclusion':()=>setActive(cur.secs.length-1),'ir a conclusion':()=>setActive(cur.secs.length-1),'ir a impresion diagnostica':()=>setActive(cur.secs.length-1),
+    'ir a hallazgos':()=>setActive(cur.secs.findIndex(s=>s.grp==='hall')),
+  };
+  if(C[n]){C[n]();return n}
+  if((m=n.match(/^(?:ir a|ve a|campo) (.+)$/))){const i=findSection(m[1]);if(i>=0){setActive(i);return 'ir a '+cur.secs[i].title}}
+  if((m=n.match(/^macro (.+)$/))){const k=macros.find(x=>norm(x[0])===m[1])||macros.find(x=>norm(x[0]).startsWith(m[1]));
+    if(k){insertText(k[1]);return 'macro '+k[0]} toast('No existe la macro «'+m[1]+'»');return 'macro no encontrada'}
+  return null;
+}
+
+/* ================= RECONOCIMIENTO DE VOZ ================= */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null, want=false;
+function setMicUI(on){$('#micBtn').classList.toggle('on',on);$('#micLbl').textContent=on?'Detener dictado':'Iniciar dictado';
+  const it=$('#interim');it.classList.remove('cmd');it.textContent=on?'Escuchando… habla en frases completas':'Micrófono apagado. Ctrl+Espacio o F4 para dictar.'}
+function startRec(){
+  if(!SR){showSupport();return}
+  if(!rec){rec=new SR();rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+    rec.onresult=e=>{let interim='';
+      for(let k=e.resultIndex;k<e.results.length;k++){const r=e.results[k];
+        if(r.isFinal){handleFinal(r[0].transcript)}else interim+=r[0].transcript}
+      if(interim){const it=$('#interim');it.classList.remove('cmd');it.textContent=interim}};
+    rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){want=false;setMicUI(false);
+        $('#support').hidden=false;$('#support').textContent='El navegador no dio permiso para usar el micrófono. Haz clic en el candado de la barra de direcciones, permite el micrófono y vuelve a intentarlo. Si abriste el archivo desde el disco, publícalo en GitHub Pages: el micrófono sólo funciona en páginas https.'}
+      else if(e.error==='network'){toast('Sin conexión con el servicio de voz')}};
+    rec.onend=()=>{if(want){setTimeout(()=>{try{rec.start()}catch(_){}} ,200)}else setMicUI(false)};
+  }
+  rec.lang=opts.lang; want=true;
+  try{rec.start()}catch(_){}
+  setMicUI(true);
+  const ta=$('#sec_'+activeIdx); if(ta&&document.activeElement!==ta)setActive(activeIdx);
+}
+function stopRec(){want=false;try{rec&&rec.stop()}catch(_){}setMicUI(false)}
+function handleFinal(raw){
+  if(!raw.trim())return;
+  const it=$('#interim');
+  const c=tryCommand(raw);
+  if(c){beep();it.classList.add('cmd');it.textContent='Comando: '+c;return}
+  const t=transform(raw);
+  insertText(t);it.classList.remove('cmd');it.textContent=t.replace(/\n/g,' ↵ ');
+}
+$('#micBtn').addEventListener('click',()=>want?stopRec():startRec());
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey&&e.code==='Space')||e.key==='F4'){e.preventDefault();want?stopRec():startRec()}
+  if(e.key==='Escape'&&!$('#ov').hidden)closePreview();
+});
+function showSupport(){const b=$('#support');b.hidden=false;b.textContent='Este navegador no tiene reconocimiento de voz. Abre DictaRad en Google Chrome o Microsoft Edge de escritorio. Mientras tanto puedes capturar con el teclado.'}
+if(!SR)showSupport();
+
+/* ================= GUARDAR / ESTADOS ================= */
+let saveT=null;
+function dirty(){clearTimeout(saveT);saveT=setTimeout(()=>save(false),1200)}
+function save(show){
+  if(!cur)return; cur.mod_at=new Date().toISOString(); cur._rev=(cur._rev||0)+1;
+  const i=reports.findIndex(r=>r.id===cur.id); const copy=JSON.parse(JSON.stringify(cur));
+  if(i>=0)reports[i]=copy;else reports.unshift(copy);
+  const ok=LS.set('reports',reports); if(show)toast(ok?(online()?'Guardado; enviando a Sheets':'Reporte guardado'):'No se pudo guardar en este navegador');
+  markPending(cur.id);
+  if(!$('#v-lista').hidden)renderList();
+}
+function dictInfo(){return {nombre:user.nombre,ced:user.ced,rol:user.rol,por:user.por,fecha:new Date().toISOString()}}
+$('#bFinal').addEventListener('click',()=>{
+  if(!user.nombre.trim()){toast('Escribe tu nombre en «Quién dicta»');$('#u_nombre').focus();return}
+  if(!cur.secs[cur.secs.length-1].text.trim()){toast('Falta la conclusión');setActive(cur.secs.length-1);return}
+  const pend=cur.secs.some(s=>s.text.includes('___'));
+  if(pend&&!$('#bFinal').dataset.ok){$('#bFinal').dataset.ok='1';$('#bFinal').textContent='Quedan espacios ___ · Finalizar de todos modos';setTimeout(()=>{delete $('#bFinal').dataset.ok;$('#bFinal').textContent='Finalizar'},4000);return}
+  delete $('#bFinal').dataset.ok;$('#bFinal').textContent='Finalizar';
+  cur.dicto=dictInfo();
+  if(user.rol==='radiologo'){cur.estado='validado';cur.valido={nombre:user.nombre,ced:user.ced,fecha:new Date().toISOString()}}
+  else cur.estado='preliminar';
+  save(false);renderEditor();openPreview();toast(cur.estado==='validado'?'Reporte firmado y validado':'Reporte preliminar: requiere validación de radiólogo');
+});
+$('#bSave').addEventListener('click',()=>save(true));
+$('#bNew').addEventListener('click',()=>{save(false);loadReport(newReport($('#tplSel').value));toast('Nuevo reporte')});
+$('#bUndo').addEventListener('click',undo);
+$('#bNormalAll').addEventListener('click',allNormal);
+$('#bPreview').addEventListener('click',openPreview);
+
+/* ================= PERFIL ================= */
+function bindUser(){
+  $('#u_nombre').value=user.nombre;$('#u_ced').value=user.ced;$('#u_rol').value=user.rol;$('#u_por').value=user.por;$('#u_por_w').hidden=user.rol!=='transcriptor';
+  ['nombre','ced','por'].forEach(k=>$('#u_'+k).addEventListener('input',e=>{user[k]=e.target.value;LS.set('user',user);updateRoleBanner()}));
+  $('#u_rol').addEventListener('change',e=>{user.rol=e.target.value;LS.set('user',user);$('#u_por_w').hidden=user.rol!=='transcriptor';updateRoleBanner()});
+}
+function updateRoleBanner(){
+  const b=$('#roleBanner');
+  if(cur&&cur.estado==='validado'){b.className='banner info small';b.textContent=`Validado por ${cur.valido?.nombre||''}${cur.valido?.ced?' · Céd. '+cur.valido.ced:''} el ${fmtDT(cur.valido?.fecha)}. Sólo lectura.`;return}
+  if(user.rol==='radiologo'){b.className='banner info small';b.textContent='Perfil radiólogo: al finalizar, el reporte queda firmado y validado con tu nombre y cédula.'}
+  else{b.className='banner warn small';b.textContent=user.rol==='noradiologo'?'Perfil médico no radiólogo: al finalizar, el reporte queda como PRELIMINAR y la hoja indicará que requiere validación por médico radiólogo.':'Perfil transcriptor: anota quién interpreta. El reporte queda como PRELIMINAR hasta que un radiólogo lo valide.'}
+}
+
+/* ================= HOJA DE REPORTE ================= */
+const fmtD=d=>{if(!d)return'';const x=new Date(d.length===10?d+'T12:00':d);return x.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'})};
+const fmtDT=d=>d?new Date(d).toLocaleString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+const ROL={radiologo:'Médico radiólogo',noradiologo:'Médico no radiólogo',transcriptor:'Transcriptor'};
+function sheetHTML(r){
+  const p=r.pac, para=t=>esc(t).replace(/\n/g,'<br>');
+  let h=`<div class="hd"><div><div class="inst">${esc(hdr.inst)}</div><div class="hosp">${esc(hdr.hosp)}</div><div class="sub">${esc(hdr.serv)}</div></div>
+   <div class="sub" style="text-align:right">Folio ${esc(r.id)}<br>${esc(hdr.dir)}</div></div>
+   <div class="ttl">${esc(r.estudio)}</div>
+   <table class="pt"><tr><td class="k">Paciente</td><td>${esc(p.nombre)}</td><td class="k">Expediente</td><td>${esc(p.exp)}</td></tr>
+   <tr><td class="k">Edad</td><td>${esc(p.edad)}</td><td class="k">Sexo</td><td>${esc(p.sexo)}</td></tr>
+   <tr><td class="k">Fecha del estudio</td><td>${fmtD(p.fecha)}</td><td class="k">Cama / folio</td><td>${esc(p.folio)}</td></tr>
+   <tr><td class="k">Servicio</td><td>${esc(p.serv)}</td><td class="k">Médico solicitante</td><td>${esc(p.med)}</td></tr></table>`;
+  if(r.estado!=='validado')h+=`<div class="pre">INTERPRETACIÓN PRELIMINAR${r.dicto?' elaborada por '+esc(ROL[r.dicto.rol]||'').toLowerCase():''}. Requiere validación por médico especialista en Imagenología antes de considerarse definitiva.</div>`;
+  let inH=false;
+  r.secs.forEach(s=>{
+    if(!s.text.trim())return;
+    if(s.grp==='pre'){h+=`<h4>${esc(s.title)}</h4><p>${para(s.text)}</p>`}
+    else if(s.grp==='hall'){if(!inH){h+='<h4>Hallazgos</h4>';inH=true}
+      h+= r.tpl==='libre'?`<p>${para(s.text)}</p>`:`<p class="sh"><b>${esc(s.title)}:</b> ${para(s.text)}</p>`}
+    else h+=`<h4>${esc(s.title)}</h4><div class="concl"><p>${para(s.text)}</p></div>`;
+  });
+  const d=r.dicto, v=r.valido;
+  const dLbl=d?`${esc(d.nombre)}${d.ced?'<br>Céd. Prof. '+esc(d.ced):''}<br>${esc(ROL[d.rol]||'')}${d.rol==='transcriptor'&&d.por?' · interpretó: '+esc(d.por):''}`:'Elaboró';
+  const vLbl=v?`${esc(v.nombre)}${v.ced?'<br>Céd. Prof. '+esc(v.ced):''}<br>Médico radiólogo · validó ${fmtDT(v.fecha)}`:'Médico radiólogo que valida<br>Nombre, cédula y firma';
+  h+=`<div class="firmas"><div>${dLbl}</div><div>${vLbl}</div></div>
+      <div class="foot">Reporte generado con DictaRad HGR · ${d?'Dictado '+fmtDT(d.fecha):'Sin finalizar'} · Estado: ${({borrador:'Borrador',preliminar:'Preliminar',validado:'Validado'})[r.estado]}</div>`;
+  return h;
+}
+function openPreview(){save(false);$('#sheet').innerHTML=sheetHTML(cur);$('#ov').hidden=false;$('#valBox').hidden=true;
+  $('#bValidar').hidden=cur.estado==='validado';$('#bValidar').textContent=cur.estado==='borrador'?'Validar como radiólogo':'Validar como radiólogo';}
+function closePreview(){$('#ov').hidden=true}
+$('#bClose').addEventListener('click',closePreview);
+$('#bPrint').addEventListener('click',()=>window.print());
+$('#bValidar').addEventListener('click',()=>{$('#valBox').hidden=false;$('#val_n').value=user.rol==='radiologo'?user.nombre:'';$('#val_c').value=user.rol==='radiologo'?user.ced:'';$('#val_n').focus()});
+$('#bValOk').addEventListener('click',()=>{
+  const n=$('#val_n').value.trim(),c=$('#val_c').value.trim(); if(!n||!c){toast('Escribe nombre y cédula del radiólogo');return}
+  if(!cur.dicto)cur.dicto=dictInfo();
+  cur.estado='validado';cur.valido={nombre:n,ced:c,fecha:new Date().toISOString()};save(false);renderEditor();openPreview();toast('Reporte validado');
+});
+function plainText(r){
+  let t=r.estudio.toUpperCase()+'\n'+`Paciente: ${r.pac.nombre} · Exp.: ${r.pac.exp} · Edad: ${r.pac.edad} · Fecha: ${fmtD(r.pac.fecha)}\n`;
+  if(r.estado!=='validado')t+='INTERPRETACIÓN PRELIMINAR, requiere validación por médico radiólogo.\n';
+  let inH=false;
+  r.secs.forEach(s=>{if(!s.text.trim())return;
+    if(s.grp==='hall'){if(!inH){t+='\nHALLAZGOS\n';inH=true}t+=(r.tpl==='libre'?'':s.title+': ')+s.text+'\n'}
+    else t+='\n'+s.title.toUpperCase()+'\n'+s.text+'\n'});
+  if(r.valido)t+=`\nValidó: ${r.valido.nombre} · Céd. ${r.valido.ced}`;
+  return t;
+}
+$('#bCopy').addEventListener('click',()=>{const t=plainText(cur);
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Texto copiado'),()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Texto copiado')}catch(e){toast('No se pudo copiar')}ta.remove()})});
+function download(name,content,type){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+$('#bWord').addEventListener('click',()=>{
+  const css=[...document.styleSheets].map(()=>'').join('');
+  const style=`body{font-family:Arial,sans-serif;font-size:11pt;color:#1a1a1a}.inst{font-weight:bold;color:#691C32}.hosp{font-weight:bold;color:#006657;font-size:13pt}.sub{font-size:9pt;color:#444}.ttl{font-weight:bold;text-align:center;font-size:12pt;margin:8pt 0;text-transform:uppercase}table.pt{border-collapse:collapse;width:100%;font-size:10pt}table.pt td{border:1px solid #c9d6d2;padding:3pt 5pt}td.k{background:#eef5f3;font-weight:bold}.pre{border:1px solid #BC955C;background:#fbf6ee;color:#5a3d12;padding:5pt;font-weight:bold;font-size:10pt}h4{color:#006657;font-size:10.5pt;margin:10pt 0 2pt;text-transform:uppercase}p{margin:0 0 3pt}.concl{border-left:3px solid #006657;padding-left:8pt;background:#f3f8f6}.firmas{margin-top:40pt}.firmas div{border-top:1px solid #333;padding-top:3pt;text-align:center;font-size:9.5pt;margin-top:30pt}.foot{font-size:8pt;color:#666;margin-top:16pt}.hd{border-bottom:2px solid #006657;padding-bottom:6pt;margin-bottom:8pt}`;
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>${style}</style></head><body>${sheetHTML(cur)}</body></html>`;
+  const nm=(cur.pac.nombre||'paciente').replace(/[^\p{L}\d]+/gu,'_').slice(0,40);
+  download(`${cur.id}_${nm}.doc`,'﻿'+html,'application/msword');toast('Descargando documento de Word');
+});
+
+/* ================= LISTA ================= */
+function renderList(){
+  const fe=$('#fEstado').value, q=norm($('#fBus').value);
+  const rows=reports.filter(r=>(!fe||r.estado===fe)&&(!q||norm(r.pac.nombre+' '+r.estudio+' '+r.pac.exp+' '+r.id).includes(q)));
+  let h='<thead><tr><th>Fecha</th><th>Paciente</th><th>Estudio</th><th>Dictó</th><th>Estado</th><th></th></tr></thead><tbody>';
+  if(!rows.length)h+='<tr><td colspan="6" class="muted">Aún no hay reportes guardados. Dicta el primero en la pestaña «Dictado».</td></tr>';
+  rows.forEach(r=>{h+=`<tr><td class="num">${fmtD(r.pac.fecha)}</td><td>${esc(r.pac.nombre||'(sin nombre)')}<br><span class="muted small">${esc(r.pac.exp)}</span></td>
+    <td><span class="mod">${esc(r.mod)}</span> ${esc(r.estudio)}</td><td class="small">${esc(r.dicto?.nombre||'')}</td>
+    <td><span class="chip ${r.estado}">${({borrador:'Borrador',preliminar:'Preliminar',validado:'Validado'})[r.estado]}</span>${conflicts[r.id]?' <span class="chip conflicto">Conflicto</span>':''}${pending.includes(r.id)&&online()?' <span class="muted small">por enviar</span>':''}</td>
+    <td style="white-space:nowrap"><button class="btn sm" data-open="${r.id}" type="button">Abrir</button>${r.estado==='validado'||r.reabierto?'':` <button class="btn sm danger" data-del="${r.id}" type="button">Eliminar</button>`}</td></tr>`});
+  $('#tLista').innerHTML=h+'</tbody>';
+}
+$('#tLista').addEventListener('click',e=>{
+  const o=e.target.closest('[data-open]'),d=e.target.closest('[data-del]');
+  if(o){const r=reports.find(x=>x.id===o.dataset.open);loadReport(JSON.parse(JSON.stringify(r)));showView('editor')}
+  if(d){if(d.dataset.sure){delReport(d.dataset.del)}
+        else{d.dataset.sure='1';d.textContent='¿Seguro?';setTimeout(()=>{if(d.isConnected){delete d.dataset.sure;d.textContent='Eliminar'}},3000)}}
+});
+$('#fEstado').addEventListener('change',renderList);$('#fBus').addEventListener('input',renderList);
+$('#bExp').addEventListener('click',()=>download('dictarad_respaldo_'+today()+'.json',JSON.stringify({reports,voc,macros,hdr},null,1),'application/json'));
+$('#fImp').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{const d=JSON.parse(fr.result);
+  const ids=new Set(reports.map(r=>r.id));let n=0;(d.reports||[]).forEach(r=>{if(!ids.has(r.id)){reports.push(r);n++}});
+  if(d.voc)voc=d.voc;if(d.macros)macros=d.macros;LS.set('reports',reports);LS.set('voc',voc);LS.set('macros',macros);renderList();renderVoc();toast(n+' reportes importados')}catch(_){toast('El archivo no es un respaldo de DictaRad')}};fr.readAsText(f);e.target.value=''});
+
+/* ================= VOCABULARIO / MACROS / OPCIONES ================= */
+function renderVoc(){
+  $('#tVoc').innerHTML='<thead><tr><th>Lo que se escucha</th><th>Lo que se escribe</th><th></th></tr></thead><tbody>'+
+    voc.map((v,i)=>`<tr><td><input id="vf${i}" data-v="${i}" data-c="0" value="${esc(v[0])}"></td><td><input id="vt${i}" data-v="${i}" data-c="1" value="${esc(v[1])}"></td><td><button class="btn sm danger" data-vd="${i}" type="button">Quitar</button></td></tr>`).join('')+'</tbody>';
+  $('#tMac').innerHTML='<thead><tr><th style="width:24%">Nombre (di «macro …»)</th><th>Texto que se inserta</th><th></th></tr></thead><tbody>'+
+    macros.map((v,i)=>`<tr><td><input id="mf${i}" data-m="${i}" data-c="0" value="${esc(v[0])}"></td><td><input id="mt${i}" data-m="${i}" data-c="1" value="${esc(v[1])}"></td><td><button class="btn sm danger" data-md="${i}" type="button">Quitar</button></td></tr>`).join('')+'</tbody>';
+}
+$('#tVoc').addEventListener('input',e=>{const t=e.target;if(t.dataset.v){voc[+t.dataset.v][+t.dataset.c]=t.value;LS.set('voc',voc);pushConfigSoon()}});
+$('#tMac').addEventListener('input',e=>{const t=e.target;if(t.dataset.m){macros[+t.dataset.m][+t.dataset.c]=t.value;LS.set('macros',macros);pushConfigSoon()}});
+$('#tVoc').addEventListener('click',e=>{const b=e.target.closest('[data-vd]');if(b){voc.splice(+b.dataset.vd,1);LS.set('voc',voc);renderVoc();pushConfigSoon()}});
+$('#tMac').addEventListener('click',e=>{const b=e.target.closest('[data-md]');if(b){macros.splice(+b.dataset.md,1);LS.set('macros',macros);renderVoc();pushConfigSoon()}});
+$('#bAddVoc').addEventListener('click',()=>{voc.unshift(['','']);LS.set('voc',voc);renderVoc();$('#vf0').focus()});
+$('#bAddMac').addEventListener('click',()=>{macros.unshift(['','']);LS.set('macros',macros);renderVoc();$('#mf0').focus()});
+$('#bResetVoc').addEventListener('click',e=>{const b=e.currentTarget;if(b.dataset.sure){voc=VOC0.map(x=>x.slice());LS.set('voc',voc);renderVoc();pushConfigSoon();toast('Lista restaurada');delete b.dataset.sure;b.textContent='Restaurar lista original'}
+  else{b.dataset.sure='1';b.textContent='Se perderán tus correcciones · confirmar';setTimeout(()=>{delete b.dataset.sure;b.textContent='Restaurar lista original'},3500)}});
+function bindOpts(){
+  $('#optPunct').checked=opts.punct;$('#optUnits').checked=opts.units;$('#optBeep').checked=opts.beep;$('#optLang').value=opts.lang;
+  $('#optPunct').onchange=e=>{opts.punct=e.target.checked;LS.set('opts',opts)};
+  $('#optUnits').onchange=e=>{opts.units=e.target.checked;LS.set('opts',opts)};
+  $('#optBeep').onchange=e=>{opts.beep=e.target.checked;LS.set('opts',opts)};
+  $('#optLang').onchange=e=>{opts.lang=e.target.value;LS.set('opts',opts);if(want){stopRec();startRec()}};
+  ['inst','hosp','serv','dir'].forEach(k=>{$('#h_'+k).value=hdr[k];$('#h_'+k).oninput=e=>{hdr[k]=e.target.value;LS.set('hdr',hdr)}});
+}
+
+
+/* ================= SINCRONIZACIÓN CON GOOGLE SHEETS ================= */
+let syncErr='', flushing=false, flushT=null, cfgT=null, pulling=false;
+function online(){return !!(conn.url&&conn.key)}
+async function api(action,data={}){
+  const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),30000);
+  try{
+    const r=await fetch(conn.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(Object.assign({action,key:conn.key,usuario:user.nombre||''},data)),signal:ctl.signal,redirect:'follow'});
+    let j; try{j=await r.json()}catch(_){throw new Error('La URL no responde como la app web de DictaRad. Revisa que termine en /exec y que el acceso sea «Cualquier usuario».')}
+    if(j.error==='CLAVE')throw new Error('La clave no coincide con la de la pestaña Config de la hoja.');
+    return j;
+  }finally{clearTimeout(to)}
+}
+function updatePill(){
+  const p=$('#syncPill');
+  if(!online()){p.className='sync';p.textContent='Sólo este equipo';$('#listTitle').textContent='Reportes guardados en este equipo';return}
+  $('#listTitle').textContent='Reportes del servicio (Google Sheets)';
+  $('#listSrc').textContent='Lista compartida con los demás equipos conectados. Se actualiza cada minuto.';
+  if(syncErr){p.className='sync err';p.textContent='Sin conexión'+(pending.length?' · '+pending.length+' por enviar':'');p.title=syncErr;return}
+  if(pending.length){p.className='sync pend';p.textContent='Enviando '+pending.length+'…';return}
+  p.className='sync ok';p.textContent='Sincronizado';p.title='Conectado a Google Sheets';
+}
+function markPending(id){if(!online())return;if(!pending.includes(id)){pending.push(id);LS.set('pending',pending)}updatePill();clearTimeout(flushT);flushT=setTimeout(flush,3000)}
+async function flush(){
+  if(!online()||flushing||!pending.length){updatePill();return}
+  flushing=true;
+  try{
+    while(pending.length){
+      const id=pending[0]; const r=reports.find(x=>x.id===id);
+      if(!r){pending.shift();LS.set('pending',pending);continue}
+      const rev=r._rev, body=JSON.parse(JSON.stringify(r)), base=body.version||'';
+      const res=await api('save',{report:body,base,force:!!r._force});
+      const r2=reports.find(x=>x.id===id);
+      if(res.ok){
+        if(r2){r2.version=res.version;delete r2._force}
+        if(cur&&cur.id===id){cur.version=res.version;delete cur._force}
+        if(!r2||r2._rev===rev)pending.shift();
+      }else if(res.conflict||res.error==='VALIDADO'||res.error==='ELIMINADO'){pending.shift();handleConflict(id,res)}
+      else throw new Error(res.error||'Error del servidor');
+      LS.set('reports',reports);LS.set('pending',pending);
+    }
+    syncErr='';
+  }catch(e){syncErr=e.message||'Sin conexión';clearTimeout(flushT);flushT=setTimeout(flush,20000)}
+  finally{flushing=false;updatePill();if(!$('#v-lista').hidden)renderList()}
+}
+function replaceLocal(s){const i=reports.findIndex(x=>x.id===s.id);if(i>=0)reports[i]=s;else reports.unshift(s);LS.set('reports',reports)}
+function handleConflict(id,res){
+  const srv=res.server;
+  if(res.error==='ELIMINADO'){reports=reports.filter(x=>x.id!==id);LS.set('reports',reports);
+    if(cur&&cur.id===id){loadReport(newReport($('#tplSel').value))}toast('Ese reporte fue eliminado en otro equipo');return}
+  if(res.error==='VALIDADO'&&srv){replaceLocal(srv);if(cur&&cur.id===id)loadReport(JSON.parse(JSON.stringify(srv)));
+    toast('El reporte ya fue validado en otro equipo; se cargó la versión validada');return}
+  if(srv){conflicts[id]=srv;LS.set('conflicts',conflicts);if(cur&&cur.id===id)$('#conflictBox').hidden=false;toast('Conflicto de versiones en '+id)}
+}
+$('#bUseSrv').addEventListener('click',()=>{const s=conflicts[cur.id];if(!s)return;delete conflicts[cur.id];LS.set('conflicts',conflicts);
+  replaceLocal(s);loadReport(JSON.parse(JSON.stringify(s)));toast('Se cargó la versión de Sheets')});
+$('#bKeepMine').addEventListener('click',()=>{const s=conflicts[cur.id];if(!s)return;
+  if(s.estado==='validado'){toast('La versión guardada está validada; cárgala y reábrela si necesitas corregirla');return}
+  cur.version=s.version;delete conflicts[cur.id];LS.set('conflicts',conflicts);$('#conflictBox').hidden=true;save(true)});
+
+async function pull(show){
+  if(!online()||pulling)return; pulling=true;
+  try{
+    await flush();
+    const res=await api('list',{since:lastSync});
+    if(!res.ok)throw new Error(res.error||'Error del servidor');
+    let changed=0;
+    res.rows.forEach(row=>{
+      const s=row.json; if(!s||!s.id)return; s.version=row.version;
+      if(pending.includes(s.id))return;
+      if(row.eliminado){reports=reports.filter(x=>x.id!==s.id);changed++;return}
+      const loc=reports.find(x=>x.id===s.id); if(loc&&loc.version===s.version)return;
+      replaceLocal(s);changed++;
+      const typing=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#v-editor');
+      if(cur&&cur.id===s.id&&!typing){cur=JSON.parse(JSON.stringify(s));renderEditor()}
+    });
+    lastSync=res.now;LS.set('lastSync',lastSync);LS.set('reports',reports);syncErr='';
+    if(show)toast(changed?changed+' reportes actualizados':'Todo al día');
+    if(!$('#v-lista').hidden)renderList();
+  }catch(e){syncErr=e.message||'Sin conexión';if(show)toast(syncErr)}
+  finally{pulling=false;updatePill()}
+}
+async function pullConfig(){
+  const res=await api('getConfig'); if(!res.ok)return;
+  if(res.voc.length||res.macros.length){if(res.voc.length)voc=res.voc;if(res.macros.length)macros=res.macros;LS.set('voc',voc);LS.set('macros',macros);if(!$('#v-vocab').hidden)renderVoc()}
+  else await api('saveConfig',{voc,macros});
+}
+function pushConfigSoon(){if(!online())return;clearTimeout(cfgT);cfgT=setTimeout(()=>api('saveConfig',{voc,macros}).catch(()=>{}),2500)}
+async function delReport(id){
+  const r=reports.find(x=>x.id===id); if(r&&(r.estado==='validado'||r.reabierto)){toast('Los reportes que fueron validados no se eliminan');return}
+  if(online()&&r&&r.version){
+    try{const res=await api('delete',{id});if(!res.ok){toast(res.error||'No se pudo eliminar');return}}
+    catch(e){toast('Sin conexión: no se pudo eliminar en Sheets');return}
+  }
+  reports=reports.filter(x=>x.id!==id);pending=pending.filter(x=>x!==id);LS.set('reports',reports);LS.set('pending',pending);
+  if(cur&&cur.id===id)loadReport(newReport($('#tplSel').value));
+  renderList();toast('Reporte eliminado');
+}
+function bindConn(){
+  $('#c_url').value=conn.url;$('#c_key').value=conn.key;
+  $('#bConn').addEventListener('click',async()=>{
+    const url=$('#c_url').value.trim(),key=$('#c_key').value.trim(),msg=$('#connMsg');
+    if(!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(url)){msg.textContent='La URL debe ser la de la aplicación web de Apps Script y terminar en /exec.';return}
+    if(!key){msg.textContent='Escribe la clave de la pestaña Config.';return}
+    const prev=conn; conn={url,key}; msg.textContent='Probando conexión…';
+    try{const r=await api('ping');if(!r.ok)throw new Error(r.error||'Sin respuesta');
+      LS.set('conn',conn);
+      reports.forEach(x=>{if(!x.version&&!pending.includes(x.id))pending.push(x.id)});LS.set('pending',pending);
+      msg.textContent='Conectado. Subiendo reportes locales y descargando los del servicio…';
+      await pullConfig();await pull(false);
+      msg.textContent='Conectado a Google Sheets. '+reports.length+' reportes disponibles.';toast('Conectado');
+    }catch(e){conn=prev;msg.textContent='No se pudo conectar: '+(e.name==='AbortError'?'el servidor tardó demasiado.':e.message)}
+    updatePill();
+  });
+  $('#bSyncNow').addEventListener('click',()=>{if(!online()){toast('Primero conecta la hoja');return}pull(true)});
+  $('#bDisc').addEventListener('click',e=>{const b=e.currentTarget;
+    if(pending.length&&!b.dataset.sure){b.dataset.sure='1';b.textContent=pending.length+' cambios sin enviar · confirmar';setTimeout(()=>{delete b.dataset.sure;b.textContent='Desconectar este equipo'},3500);return}
+    delete b.dataset.sure;b.textContent='Desconectar este equipo';
+    conn={url:'',key:''};LS.set('conn',conn);pending=[];LS.set('pending',pending);lastSync='';LS.set('lastSync','');
+    $('#c_url').value='';$('#c_key').value='';$('#connMsg').textContent='Este equipo trabaja ahora sin conexión.';updatePill()});
+  $('#syncPill').addEventListener('click',()=>{showView('vocab');$('#connCard').scrollIntoView({block:'start'})});
+  $('#bPull').addEventListener('click',()=>online()?pull(true):toast('Sin conexión a Sheets: la lista es la de este equipo'));
+  setInterval(()=>{if(online()&&document.visibilityState==='visible')pull(false)},60000);
+  window.addEventListener('online',()=>{syncErr='';flush()});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&online())pull(false)});
+}
+$('#bReopen').addEventListener('click',()=>{
+  const m=$('#reMotivo').value.trim(); if(!m){toast('Escribe el motivo de la corrección');$('#reMotivo').focus();return}
+  if(!user.nombre.trim()){toast('Escribe tu nombre en «Quién dicta»');return}
+  cur.reabierto={motivo:m,por:user.nombre,fecha:new Date().toISOString(),valido_anterior:cur.valido};
+  cur.valido=null;cur.estado='borrador';$('#reMotivo').value='';
+  save(true);renderEditor();setActive(cur.secs.length-1);toast('Reporte reabierto para corrección');
+});
+
+/* ================= NAVEGACIÓN ================= */
+function showView(v){$$('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.v===v));$$('.view').forEach(s=>s.hidden=s.id!=='v-'+v);
+  if(v==='lista')renderList();if(v==='vocab')renderVoc();window.scrollTo(0,0)}
+$$('.tab').forEach(t=>t.addEventListener('click',()=>showView(t.dataset.v)));
+
+/* ================= INICIO ================= */
+$('#tplSel').innerHTML=['US','TC','RM','—'].map(m=>`<optgroup label="${({US:'Ultrasonido',TC:'Tomografía',RM:'Resonancia magnética','—':'Otro'})[m]}">`+
+  TPL.filter(t=>t.mod===m).map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')+'</optgroup>').join('');
+bindUser();bindOpts();bindConn();
+const last=reports.find(r=>r.estado==='borrador');
+loadReport(last?JSON.parse(JSON.stringify(last)):newReport('us-abd'));
+updatePill();
+if(online()){pullConfig().catch(()=>{});pull(false)}
+</script>
